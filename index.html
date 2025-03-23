@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodRescue - Save Food, Feed Lives</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; scroll-behavior: smooth; }
+        .hero-section { background: url('https://source.unsplash.com/1600x900/?food,donation') no-repeat center center/cover; padding: 80px 20px; text-align: center; color: white; }
+        .progress { height: 20px; }
+        .navbar-brand { font-weight: bold; }
+        .footer { background: #333; color: white; text-align: center; padding: 15px 0; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">🍽️ FoodRescue</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#find-restaurants">Find Restaurants</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#find-ngos">Find NGOs</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#list-food">List Excess Food</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#send-food">Send Food</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#notifications">Notifications</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1>Rescue Food, Feed Lives!</h1>
+        <p>Join our mission to reduce food waste & fight hunger.</p>
+        <a href="#find-restaurants" class="btn btn-success">Find Excess Food</a>
+        <a href="#list-food" class="btn btn-warning">Donate Food</a>
+    </div>
+
+    <!-- Find Restaurants Section -->
+    <div class="container mt-4" id="find-restaurants">
+        <h2>Find Restaurants</h2>
+        <p>Here are some restaurants that have excess food available:</p>
+        <ul class="list-group" id="restaurant-list">
+            <li class="list-group-item" onclick="showRestaurant('Food Haven', 'Pizza - 10kg')">🍕 Food Haven</li>
+            <li class="list-group-item" onclick="showRestaurant('Burger Spot', 'Burgers - 5kg')">🍔 Burger Spot</li>
+            <li class="list-group-item" onclick="showRestaurant('Green Eats', 'Salads - 8kg')">🥗 Green Eats</li>
+        </ul>
+        <div id="restaurant-details" class="mt-3"></div>
+    </div>
+
+    <!-- Find NGOs Section -->
+    <div class="container mt-4" id="find-ngos">
+        <h2>Find NGOs</h2>
+        <p>These NGOs are accepting food donations:</p>
+        <ul class="list-group" id="ngo-list">
+            <li class="list-group-item" onclick="showNGO('Hope Shelter', 50, 30)">🏥 Hope Shelter</li>
+            <li class="list-group-item" onclick="showNGO('Helping Hands', 40, 10)">🤲 Helping Hands</li>
+        </ul>
+        <div id="ngo-details" class="mt-3"></div>
+    </div>
+
+    <!-- List Excess Food Section -->
+    <div class="container mt-4" id="list-food">
+        <h2>List Excess Food</h2>
+        <form id="food-form">
+            <input type="text" class="form-control" id="food-type" placeholder="Food Type">
+            <input type="number" class="form-control mt-2" id="food-quantity" placeholder="Quantity (kg)">
+            <button type="button" class="btn btn-primary mt-2" onclick="addFood()">List Food</button>
+        </form>
+        <h3 class="mt-4">Listed Food</h3>
+        <ul class="list-group" id="food-list"></ul>
+    </div>
+
+    <!-- Notifications -->
+    <div class="container mt-4" id="notifications">
+        <h2>Live Notifications</h2>
+        <ul class="list-group" id="notification-list"></ul>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 FoodRescue</p>
+    </footer>
+
+    <script>
+        function addFood() {
+            let foodType = document.getElementById("food-type").value;
+            let foodQuantity = document.getElementById("food-quantity").value;
+            if (foodType && foodQuantity) {
+                let listItem = `<li class='list-group-item'>${foodType} - ${foodQuantity}kg <span class='badge bg-warning' id='status-${foodType}'>Not Sent</span></li>`;
+                document.getElementById("food-list").innerHTML += listItem;
+            }
+        }
+
+        function sendFood() {
+            document.querySelectorAll("#food-list .badge").forEach(badge => {
+                badge.classList.remove("bg-warning");
+                badge.classList.add("bg-success");
+                badge.innerText = "Sent";
+            });
+            document.getElementById("notification-list").innerHTML += `<li class='list-group-item list-group-item-success'>✅ Food sent successfully!</li>`;
+        }
+
+        function showRestaurant(name, foodAvailable) {
+            document.getElementById("restaurant-details").innerHTML = `<h4>${name}</h4><p>Available: ${foodAvailable}</p><button class='btn btn-primary' onclick='requestFood()'>Request Food</button>`;
+        }
+
+        function requestFood() {
+            document.getElementById("notification-list").innerHTML += `<li class='list-group-item list-group-item-info'>🔔 Food request sent to restaurant.</li>`;
+        }
+
+        function showNGO(name, totalNeed, received) {
+            let remaining = totalNeed - received;
+            document.getElementById("ngo-details").innerHTML = `<h4>${name}</h4>
+                <div class='progress'><div class='progress-bar' style='width: ${received / totalNeed * 100}%;'></div></div>
+                <p>${remaining}kg more needed.</p>
+                <button class='btn btn-success' onclick='sendFood()'>Donate Food</button>`;
+        }
+    </script>
+</body>
+</html>
