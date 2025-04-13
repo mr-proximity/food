@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Rescue App - Demo v2.2 (Restored & Corrected)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        /* Base Styles */
+        :root {
+            --primary-color: #4CAF50; /* green */
+            --primary-dark: #388E3C;
+            --secondary-color: #FF9800; /* orange */
+            --secondary-dark: #F57C00;
+            --text-dark: #333;
+            --text-light: #767676;
+            --text-white: #fff;
+            --background-light: #FDE4CE; /* light gray */
+            --background-dark: #e0e0e0; /* medium gray */
+            --header-color: #E53935; /* red */
+            --footer-bg-color: #333; /* Dark footer background */
+            --footer-text-color: #ccc; /* Light footer text */
+            --border-color: #ddd;
+            --success-color: #4CAF50;
+            --danger-color: #E53935;
+            --warning-color: #FF9800;
+            --info-color: #5D4037; /* brown */
+            --approved-color: #1976D2; /* Blue for Approved */
+            --loading-bg: var(--info-color); /* Dark Brown for loading box */
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --radius: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--text-dark); background-color: var(--background-light); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; }
+        body.no-scroll { overflow: hidden; }
+        main { flex: 1; }
+        a { text-decoration: none; color: var(--primary-color); transition: var(--transition); }
+        a:hover { color: var(--primary-dark); }
+        ul { list-style: none; }
+        img { max-width: 100%; height: auto; display: block; }
+        .img-round { border-radius: var(--radius); }
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        /* Loading Screen Styles */
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 1; visibility: visible; transition: opacity 0.5s ease, visibility 0s linear 0s; }
+        #loading-overlay.hidden { opacity: 0; visibility: hidden; transition: opacity 0.5s ease, visibility 0s linear 0.5s; }
+        #loading-box { background-color: var(--loading-bg); padding: 20px; border-radius: var(--radius); box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4); width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #loading-video { max-width: 100%; max-height: 100%; object-fit: contain; filter: brightness(1.1);mix-blend-mode: screen; }
+
+        /* Header Styles */
+        header { background-color: var(--header-color); box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
+        .logo { display: flex; align-items: center; color: white; cursor: pointer; font-size: 1.4rem; font-weight: bold; }
+        .logo img { margin-right: 8px; height: 35px; width: auto; }
+        nav { display: flex; } nav ul { display: flex; } nav ul li { margin-right: 20px; } nav ul li:last-child { margin-right: 0; }
+        .nav-link { color: white; font-weight: 500; padding: 8px 0; position: relative; display: block; cursor: pointer; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 2px; background: white; bottom: 0; left: 0; transition: var(--transition); }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        .ngo-only, .donor-only { display: none; }
+        .auth-buttons { display: flex; align-items: center; }
+        .auth-buttons button { background: none; border: none; cursor: pointer; margin-left: 15px; font-size: 1.2rem; color: white; position: relative; transition: var(--transition); }
+        .auth-buttons button:hover { opacity: 0.8; }
+        .notification-badge { position: absolute; top: -5px; right: -5px; background-color: var(--info-color); color: white; font-size: 0.7rem; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; display: none; }
+        .menu-toggle { display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: white; }
+
+        /* Button Styles */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border: none; border-radius: var(--radius); font-weight: 500; cursor: pointer; transition: var(--transition); text-align: center; }
+        .btn i { font-size: 0.9em; } .btn-sm { padding: 6px 12px; font-size: 0.9rem; }
+        .btn-primary { background-color: var(--primary-color); color: white; } .btn-primary:hover:not(:disabled) { background-color: var(--primary-dark); }
+        .btn-secondary { background-color: var(--secondary-color); color: white; } .btn-secondary:hover:not(:disabled) { background-color: var(--secondary-dark); }
+        .btn-danger { background-color: var(--danger-color); color: white; } .btn-danger:hover:not(:disabled) { background-color: #c62828; }
+        .btn:disabled { background-color: var(--background-dark); color: var(--text-light); cursor: not-allowed; opacity: 0.7; }
+
+        /* Form Styles */
+        .form-group { margin-bottom: 20px; } label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-dark); }
+        .form-control { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius); background-color: white; color: var(--text-dark); transition: var(--transition); }
+        .form-control:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2); }
+        textarea.form-control { resize: vertical; min-height: 100px; }
+
+        /* Hero Section */
+        .hero { background: linear-gradient(rgba(78, 7, 12, 0.7), rgba(78, 7, 12, 0.7)), url('https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1') center/cover; color: white; padding: 100px 0; margin-bottom: 40px; text-align: center; }
+        .hero h1 { font-size: 2.5rem; margin-bottom: 20px; } .hero p { font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+
+        /* About Section */
+        .about-section { padding: 60px 0; background-color: #FDE4CE; } .about-section h2 { text-align: center; margin-bottom: 30px; color: var(--info-color); }
+
+        /* Food Card Styles */
+        .food-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-top: 30px; }
+        .food-card { background-color: #fff6ee; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: var(--transition); display: flex; flex-direction: column; border: 1px solid var(--border-color);}
+        .food-card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); }
+        .food-card-image { height: 200px; overflow: hidden; background-color: var(--background-dark); display: flex; align-items: center; justify-content: center; }
+        .food-card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+        .food-card:hover .food-card-image img { transform: scale(1.05); }
+        .food-card-content { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .food-card-title { margin-bottom: 10px; color: var(--text-dark); font-size: 1.2rem; }
+        .food-card-content p { color: var(--text-light); margin-bottom: 6px; font-size: 0.9rem; display: flex; align-items: baseline; }
+        .food-card-content p i { width: 18px; text-align: center; margin-right: 6px; color: var(--primary-color); font-size: 0.9em; }
+        .food-card-content p strong { color: var(--text-dark); margin-right: 5px; }
+        .status-tag { font-weight: bold; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; display: inline-block; margin-left: 5px; border: 1px solid; vertical-align: middle;}
+        .status-available { color: var(--success-color); background-color: #e8f5e9; border-color: #c8e6c9;}
+        .status-pending { color: var(--warning-color); background-color: #fff3e0; border-color: #ffe0b2;}
+        .status-approved { color: var(--approved-color); background-color: #e3f2fd; border-color: #bbdefb;}
+        .status-in-progress { color: var(--info-color); background-color: #efebe9; border-color: #d7ccc8;}
+        .status-transit { color: var(--secondary-dark); background-color: #fff8e1; border-color: #ffecb3;}
+        .status-delivered { color: var(--primary-dark); background-color: #c8e6c9; border-color: #a5d6a7;}
+        .status-cancelled { color: var(--danger-color); background-color: #ffebee; border-color: #ffcdd2;}
+        .food-card-actions { margin-top: auto; padding-top: 15px; text-align: right; border-top: 1px solid var(--border-color); margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; padding-bottom: 5px; background-color: #fafafa;}
+
+        /* NGO List Styles */
+        .ngo-list { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .ngo-item { background-color: white; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; transition: var(--transition); border: 1px solid var(--border-color); text-align: center; }
+        .ngo-item:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); }
+        .ngo-avatar { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin-bottom: 15px; flex-shrink: 0; border: 2px solid var(--border-color); background-color: var(--background-dark); display: flex; align-items: center; justify-content: center; }
+        .ngo-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .ngo-info { flex: 1; width: 100%; } .ngo-name { font-size: 1.2rem; margin-bottom: 5px; color: var(--text-dark); }
+        .ngo-location { color: var(--text-light); margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+        .ngo-location i { margin-right: 5px; color: var(--primary-color); } .ngo-needs { margin-top: 10px; margin-bottom: 15px; }
+        .ngo-needs strong { display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-dark); }
+        .ngo-needs span { display: inline-block; background-color: #E3F2FD; color: #1976D2; padding: 3px 8px; border-radius: 20px; font-size: 0.8rem; margin: 2px 3px; border: 1px solid #BBDEFB; }
+        .ngo-item .btn { margin-top: auto; }
+
+        /* Tabs: Simplified */
+        .tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; background-color: white; border-radius: var(--radius) var(--radius) 0 0; padding: 0 10px; flex-wrap: wrap; }
+        .tab { padding: 12px 20px; cursor: pointer; position: relative; color: var(--text-light); transition: var(--transition); font-weight: 500; border-bottom: 3px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 8px;}
+        .tab i { font-size: 1em; } .tab:hover { color: var(--primary-color); }
+        .tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        .tab-content { display: none; padding-top: 10px; }
+        .tab-content.active { display: block; }
+
+        /* Pages Styles */
+        .page { display: none; padding: 30px 0; } .page.active { display: block; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
+        .dashboard-header h2 { color: var(--info-color); margin: 0; }
+
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s linear 0.3s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; transition: opacity 0.3s ease; }
+        .modal { background-color: rgb(243, 230, 214); border-radius: var(--radius); width: 90%; max-width: 550px; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; display: flex; flex-direction: column; }
+        .modal-overlay.active .modal { transform: scale(1); opacity: 1; }
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: var(--background-light); border-radius: var(--radius) var(--radius) 0 0; flex-shrink: 0; }
+        .modal-title { margin: 0; color: var(--text-dark); font-size: 1.3rem; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--text-light); transition: var(--transition); line-height: 1; padding: 0 5px; }
+        .modal-close:hover { color: var(--danger-color); }
+        .modal-content { padding: 25px; flex-grow: 1; }
+        .modal-footer { padding: 15px 20px; border-top: 1px solid var(--border-color); background-color: var(--background-light); text-align: right; border-radius: 0 0 var(--radius) var(--radius); flex-shrink: 0; }
+        .modal-footer .btn + .btn { margin-left: 10px; }
+        #select-ngo-modal .modal-content ul { max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0; margin: 0 -10px; }
+        #select-ngo-modal .modal-content li { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background-color 0.2s ease; }
+        #select-ngo-modal .modal-content li:last-child { border-bottom: none; } #select-ngo-modal .modal-content li:hover { background-color: #f0f0f0; }
+        #select-ngo-modal .modal-content li input[type="radio"] { margin-right: 15px; } #select-ngo-modal .modal-content li label { flex-grow: 1; cursor: pointer; display: flex; flex-direction: column; }
+        #select-ngo-modal .modal-content li .ngo-name { font-weight: 500; } #select-ngo-modal .modal-content li .ngo-location { font-size: 0.85em; color: var(--text-light); }
+        #ngo-detail-modal .ngo-avatar { width: 100px; height: 100px; margin: 0 auto 15px auto; } #ngo-detail-modal .modal-content { text-align: center; }
+        #ngo-detail-modal #ngo-detail-map { height: 200px; border-radius: var(--radius); margin-top: 20px; border: 1px solid var(--border-color); background-color: var(--background-dark);}
+        #ngo-detail-modal h4 { margin-top: 15px; color: var(--info-color); }
+
+        /* Tracking & Map Styles */
+        .tracking-container { padding: 15px; border-top: 1px solid var(--border-color); background-color: #fafafa; margin-top: 15px;}
+        .tracking-container h4 { margin-bottom: 15px; font-size: 1rem; color: var(--info-color); text-align: center; }
+        .track-steps { display: flex; justify-content: space-between; position: relative; margin: 0 10px; }
+        .track-steps::before { content: ""; position: absolute; top: 15px; left: 20px; right: 20px; height: 3px; background: var(--border-color); z-index: 1; }
+        .track-steps::after { content: ""; position: absolute; top: 15px; left: 20px; height: 3px; background: var(--primary-color); z-index: 2; width: 0; transition: width 0.5s ease; }
+        .track-steps.step-1-active::after { width: 0%; } .track-steps.step-2-active::after { width: 25%; } .track-steps.step-3-active::after { width: 50%; } .track-steps.step-4-active::after { width: 75%; } .track-steps.step-5-active::after { width: 100%; }
+        .track-step { position: relative; z-index: 3; text-align: center; display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .step-icon { width: 30px; height: 30px; border-radius: 50%; background-color: white; border: 3px solid var(--border-color); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: var(--text-light); font-size: 0.9rem; transition: var(--transition); }
+        .step-icon.active { border-color: var(--primary-color); background-color: var(--primary-color); color: white; }
+        .step-text { color: var(--text-light); font-size: 0.75rem; font-weight: 500; transition: var(--transition); line-height: 1.2; }
+        .step-text.active { color: var(--primary-color); }
+        .map-container { padding: 15px; border-top: 1px solid var(--border-color); background-color: #f0f4f0; margin-top: 15px;}
+        .map-container h4 { margin-bottom: 10px; font-size: 1rem; color: var(--info-color); text-align: center; }
+        .leaflet-container { border-radius: var(--radius); border: 1px solid var(--border-color); height: 250px; }
+        .delivery-info { margin-top: 10px; padding: 10px; background-color: rgba(255, 255, 255, 0.7); border-radius: var(--radius); font-size: 0.85rem; color: var(--text-dark); }
+        .delivery-info p { margin-bottom: 5px; display: flex; align-items: center; }
+        .delivery-info i { color: var(--primary-color); margin-right: 8px; width: 16px; text-align: center; }
+        .delivery-info span { font-weight: 500; margin-left: 5px; } .delivery-info .address { font-style: italic; color: var(--text-light); }
+
+        /* Notification Styles */
+        .notification-list { position: absolute; top: 65px; right: 20px; width: 320px; max-height: 400px; overflow-y: auto; background-color: white; border-radius: var(--radius); box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 1001; display: none; border: 1px solid var(--border-color); }
+        .notification-item { display: flex; padding: 15px; border-bottom: 1px solid var(--border-color); transition: var(--transition); cursor: pointer; }
+        .notification-item.unread { background-color: rgba(76, 175, 80, 0.05); } .notification-item:hover { background-color: var(--background-dark); }
+        .notification-item:last-child { border-bottom: none; }
+        .notification-icon { width: 40px; height: 40px; border-radius: 50%; background-color: #E8F5E9; display: flex; align-items: center; justify-content: center; color: var(--primary-color); margin-right: 15px; flex-shrink: 0; font-size: 1.1rem; }
+        .notification-content { flex: 1; } .notification-title { font-weight: 600; color: var(--text-dark); margin-bottom: 3px; font-size: 0.95rem; }
+        .notification-text { color: var(--text-light); font-size: 0.85rem; margin-bottom: 5px; line-height: 1.4; } .notification-time { color: var(--text-light); font-size: 0.75rem; }
+        .no-notifications { padding: 20px; text-align: center; color: var(--text-light); }
+
+        /* Toast Styles */
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 15px 25px; background-color: var(--text-dark); color: white; border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); display: flex; align-items: center; z-index: 1050; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease, bottom 0.3s ease; }
+        .toast.show { bottom: 50px; opacity: 1; visibility: visible; }
+        .toast.success { background-color: var(--primary-dark); } .toast.error { background-color: var(--danger-color); } .toast.info { background-color: var(--info-color); }
+        .toast-icon { margin-right: 12px; font-size: 1.2rem; } .toast-content { font-weight: 500; }
+
+        /* Image Preview Styles */
+        #image-preview { margin-top: 15px; text-align: center; }
+        #preview-image { max-width: 100%; max-height: 250px; border-radius: var(--radius); border: 2px solid var(--border-color); background-color: var(--background-dark); object-fit: cover; }
+
+        /* Footer Styles */
+        footer { background-color: var(--footer-bg-color); color: var(--footer-text-color); padding: 30px 0; margin-top: 40px; font-size: 0.9rem; }
+        .footer-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .footer-links ul { display: flex; gap: 15px; } .footer-links a { color: var(--footer-text-color); transition: color 0.3s ease; } .footer-links a:hover { color: var(--primary-color); }
+        .footer-social a { color: var(--footer-text-color); margin-left: 15px; font-size: 1.2rem; transition: color 0.3s ease; } .footer-social a:hover { color: var(--primary-color); }
+        .footer-copyright { text-align: center; width: 100%; margin-top: 15px; opacity: 0.8; }
+
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            .header-content { position: relative; } .menu-toggle { display: block; order: 3; } .auth-buttons { order: 2; } .logo { order: 1; }
+            nav { position: absolute; top: 100%; left: 0; width: 100%; background-color: var(--header-color); box-shadow: var(--shadow); padding: 20px; display: none; flex-direction: column; border-top: 1px solid rgba(255, 255, 255, 0.2); }
+            nav.active { display: flex; } nav ul { flex-direction: column; width: 100%; } nav ul li { margin-right: 0; margin-bottom: 15px; width: 100%; text-align: center; } nav ul li:last-child { margin-bottom: 0; }
+            .nav-link:after { left: 50%; transform: translateX(-50%); } .nav-link:hover:after, .nav-link.active:after { width: 50%; }
+            .track-steps { margin: 0 5px;} .track-steps::before { left: 15px; right: 15px; top: 12px;} .track-steps::after { left: 15px; top: 12px;}
+            .step-icon { width: 25px; height: 25px; font-size: 0.8rem; border-width: 2px; margin-bottom: 5px;} .step-text { font-size: 0.65rem; }
+            .ngo-list { grid-template-columns: 1fr; } .dashboard-header { flex-direction: column; align-items: flex-start; }
+            .footer-content { flex-direction: column; text-align: center; } .footer-links ul { justify-content: center; } .footer-social { margin-top: 10px; } .footer-social a { margin: 0 8px; }
+        }
+        @media (max-width: 480px) {
+            .hero { padding: 60px 0; } .hero h1 { font-size: 2rem; } .hero p { font-size: 1rem; }
+            .food-grid { grid-template-columns: 1fr; } .modal { width: 95%; max-width: 95%;} .tabs { flex-wrap: wrap; }
+            .tab { padding: 10px 15px; font-size: 0.9rem; } .auth-buttons button { margin-left: 10px; font-size: 1.1rem;}
+            .logo span { display: none; } .logo img { height: 30px;}
+            .track-steps { margin: 0; } .track-steps::before { left: 10px; right: 10px; } .track-steps::after { left: 10px; } .step-text { display: none; }
+            .food-card-actions .btn { width: 100%; margin-bottom: 5px; } .food-card-actions .btn + .btn { margin-left: 0; }
+             .dashboard-header h2 { font-size: 1.5rem; }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="loading-overlay"><div id="loading-box"><video id="loading-video" src="loading.mp4" autoplay loop muted playsinline>Video not supported.</video></div></div>
+
+    <header>
+        <div class="container header-content">
+            <a href="#" class="logo" data-target="home"><img src="logo.png" alt="Food Rescue Logo" onerror="this.style.display='none'"> <span>Food Rescue</span></a>
+            <button class="menu-toggle" id="menu-toggle"><i class="fas fa-bars"></i></button>
+            <nav id="main-nav-container">
+                <ul id="main-nav">
+                    <li><a href="#" class="nav-link active" data-target="home">Home</a></li>
+                    <li><a href="#" class="nav-link" data-target="about">About Us</a></li>
+                    <li class="donor-only"><a href="#" class="nav-link" data-target="list-food">List Food</a></li>
+                    <li class="donor-only"><a href="#" class="nav-link" data-target="view-ngos">View NGOs</a></li>
+                    <li class="donor-only"><a href="#" class="nav-link" data-target="donations">My Donations</a></li>
+                    <li class="ngo-only"><a href="#" class="nav-link" data-target="available-food">Available Food</a></li>
+                    <li class="ngo-only"><a href="#" class="nav-link" data-target="ngo-requests">My Requests</a></li>
+                </ul>
+            </nav>
+            <div class="auth-buttons">
+                <button id="notifications-btn" title="Notifications"><i class="fas fa-bell"></i><span class="notification-badge" id="notification-count">0</span></button>
+                <button id="profile-btn" title="Click to switch role (Donor/NGO)"><i class="fas fa-user"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <div class="notification-list" id="notification-list"><div class="no-notifications">No new notifications</div></div>
+
+    <div class="toast" id="toast"><div class="toast-icon"><i class="fas fa-check-circle"></i></div><div class="toast-content" id="toast-message">Operation successful!</div></div>
+
+    <main>
+        <section id="home" class="page active">
+            <div class="hero">
+                <div class="container"><h1>Rescue Food, Save Lives</h1><p>Connect restaurants and food businesses with NGOs to efficiently donate excess food to those in need.</p><br><button class="btn btn-secondary btn-lg" id="get-started-btn"><i class="fas fa-tachometer-alt"></i> View Dashboard</button></div>
+            </div>
+            <div class="container"><h2 style="text-align: center; margin-bottom: 30px; color: var(--info-color);">How It Works</h2><div class="food-grid"> <div class="food-card"><div class="food-card-image"><img src="https://images.pexels.com/photos/5938/food-salad-healthy-lunch.jpg?auto=compress&cs=tinysrgb&w=400" alt="List food" class="img-round" onerror="this.parentElement.innerHTML = '<span style=\'color: var(--text-light);\'>Image error</span>';"></div><div class="food-card-content"><h3 class="food-card-title"><i class="fas fa-edit"></i> 1. List Excess Food</h3><p>Businesses easily list surplus food details: type, quantity, expiry.</p></div></div><div class="food-card"><div class="food-card-image"><img src="https://images.pexels.com/photos/628776/pexels-photo-628776.jpeg?auto=compress&cs=tinysrgb&w=400" alt="Connect with NGOs" class="img-round" onerror="this.parentElement.innerHTML = '<span style=\'color: var(--text-light);\'>Image error</span>';"></div><div class="food-card-content"><h3 class="food-card-title"><i class="fas fa-hands-helping"></i> 2. Connect with NGOs</h3><p>Verified NGOs browse listings and request needed items instantly.</p></div></div><div class="food-card"><div class="food-card-image"><img src="https://images.pexels.com/photos/4393426/pexels-photo-4393426.jpeg?auto=compress&cs=tinysrgb&w=400" alt="Track delivery" class="img-round" onerror="this.parentElement.innerHTML = '<span style=\'color: var(--text-light);\'>Image error</span>';"></div><div class="food-card-content"><h3 class="food-card-title"><i class="fas fa-map-marked-alt"></i> 3. Track Pickup</h3><p>Real-time status updates from request acceptance to successful pickup.</p></div></div></div></div>
+        </section>
+
+        <section id="about" class="page"><div class="about-section"><div class="container"><h2>About Food Rescue</h2><div style="background: white; padding: 30px; border-radius: var(--radius); box-shadow: var(--shadow); text-align: center;"><img src="logo2.png" alt="Food Rescue Logo" style="height: 80px; margin-bottom: 20px; display: inline-block;" onerror="this.style.display='none'"><p style="font-size: 1.1rem; color: var(--text-dark); max-width: 700px; margin: 0 auto 20px auto;"><strong>Group Members.</strong><br>1. Jayesh Devlekar 10476<br>2. Paras Dhende 10477<br>3. Jess Dmello 10478<br>4. Manomay Ghadi 10479<br>5. Isha Madhialagan 10480<br><strong>Mentor:</strong><br>Dr. Vasim A. Shaikh<br><br>We are proud to contribute to the advancement of the <strong>Sustainable Development Goals (SDGs)</strong>, a set of global targets that aim to build a better and more sustainable future for all:<br><br>🔸 <strong>SDG 2 – Zero Hunger:</strong> Our core mission is aligned with ending hunger. By rescuing and redistributing surplus food, we ensure that food reaches those who need it most—especially vulnerable communities that often go unnoticed. Each meal shared represents a step toward a hunger-free world.<br><br>🔸 <strong>SDG 12 – Responsible Consumption and Production:</strong> Our system promotes circularity by turning waste into opportunity. We empower businesses to optimize their supply chains, reduce overproduction, and manage food more sustainably. This supports long-term resource efficiency and responsible habits.<br><br>🔸 <strong>SDG 13 – Climate Action:</strong> Food waste contributes significantly to greenhouse gas emissions. By preventing edible food from ending up in landfills, we actively cut down methane emissions and help combat climate change. Every tray saved is a contribution to a healthier planet.<br><br>🔸 <strong>SDG 17 – Partnerships for the Goals:</strong> Our entire initiative thrives on collaboration. Through technology, we connect food donors, NGOs, volunteers, and logistics partners—creating an ecosystem that multiplies impact. It's a living example of how united action leads to lasting progress.
+</p><p style="color: var(--text-light); max-width: 700px; margin: 0 auto;">Our mission is simple: ensure good food gets to people, not landfills...</p></div></div></div></section>
+
+        <section id="list-food" class="page"><div class="container"><div class="dashboard-header"><h2><i class="fas fa-plus-circle"></i> List New Food Item</h2></div><form id="list-food-form" style="background: white; padding: 30px; border-radius: var(--radius); box-shadow: var(--shadow);"><div class="form-group"><label for="food-name"><i class="fas fa-utensils"></i> Food Name</label><input type="text" id="food-name" class="form-control" placeholder="e.g., Vegetable Curry, Bread Loaves" required></div><div class="form-group"><label for="food-quantity"><i class="fas fa-balance-scale"></i> Quantity</label><input type="text" id="food-quantity" class="form-control" placeholder="e.g., 5 kg, 10 servings, 2 trays" required></div><div class="form-group"><label for="food-expiry"><i class="fas fa-calendar-times"></i> Best Before / Expiry</label><input type="datetime-local" id="food-expiry" class="form-control" required></div><div class="form-group"><label for="food-condition"><i class="fas fa-thermometer-half"></i> Condition</label><select id="food-condition" class="form-control" required><option value="">Select...</option><option value="Cooked">Cooked</option><option value="Uncooked">Uncooked</option><option value="Packaged">Packaged</option><option value="Produce">Produce</option></select></div><div class="form-group"><label for="food-pickup-address"><i class="fas fa-map-marker-alt"></i> Pickup Address</label><textarea id="food-pickup-address" class="form-control" placeholder="Full address" required></textarea></div><div class="form-group"><label for="food-notes"><i class="fas fa-sticky-note"></i> Notes (Optional)</label><textarea id="food-notes" class="form-control" placeholder="e.g., Allergens, pickup instructions"></textarea></div><div class="form-group"><label for="food-image"><i class="fas fa-camera"></i> Image (Optional)</label><input type="file" id="food-image" class="form-control" accept="image/*"></div><div id="image-preview"></div><div class="form-group" style="text-align: right;"><button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> List Item</button></div></form></div></section>
+
+        <section id="view-ngos" class="page"><div class="container"><div class="dashboard-header"><h2><i class="fas fa-hands-helping"></i> Verified NGOs</h2></div><div class="ngo-list" id="ngo-list-container"></div></div></section>
+
+        <section id="donations" class="page donor-only">
+            <div class="container">
+                <div class="dashboard-header"><h2><i class="fas fa-history"></i> My Donation History</h2><button class="btn btn-primary btn-sm" onclick="navigate('list-food')"><i class="fas fa-plus"></i> List New Item</button></div>
+                <div class="tabs" id="donation-tabs">
+                    <div class="tab active" data-tab="donations-all"><i class="fas fa-list-ul"></i> All</div>
+                    <div class="tab" data-tab="donations-available"><i class="fas fa-check-circle"></i> Available</div>
+                    <div class="tab" data-tab="donations-pending"><i class="fas fa-clock"></i> Pending</div>
+                    <div class="tab" data-tab="donations-delivered"><i class="fas fa-gift"></i> Delivered</div>
+                    <div class="tab" data-tab="donations-cancelled"><i class="fas fa-times-circle"></i> Cancelled</div>
+                    </div>
+                <div id="donations-content">
+                    <div id="donations-all" class="tab-content active"><div class="food-grid" id="donations-grid-all"></div></div>
+                    <div id="donations-available" class="tab-content"><div class="food-grid" id="donations-grid-available"></div></div>
+                    <div id="donations-pending" class="tab-content"><div class="food-grid" id="donations-grid-pending"></div></div>
+                    <div id="donations-delivered" class="tab-content"><div class="food-grid" id="donations-grid-delivered"></div></div>
+                    <div id="donations-cancelled" class="tab-content"><div class="food-grid" id="donations-grid-cancelled"></div></div>
+                    </div>
+            </div>
+        </section>
+
+         <section id="available-food" class="page ngo-only"><div class="container"><div class="dashboard-header"><h2><i class="fas fa-utensils"></i> Available Food Donations</h2></div><p style="color: var(--text-light); margin-bottom: 20px;">Browse food items currently available for pickup.</p><div class="food-grid" id="available-food-grid"></div></div></section>
+
+         <section id="ngo-requests" class="page ngo-only"><div class="container"><div class="dashboard-header"><h2><i class="fas fa-tasks"></i> My Food Requests</h2></div><div class="food-grid" id="ngo-requests-grid"><p>You haven't requested any food items yet.</p></div></div></section>
+    </main>
+
+    <footer><div class="container footer-content"><div class="footer-info"><img src="logo.png" alt="Food Rescue Logo" style="height: 30px; opacity: 0.8; margin-bottom: 10px;" onerror="this.style.display='none'"><p>Reducing waste, feeding communities.</p></div><div class="footer-links"><ul><li><a href="#" onclick="navigate('home'); return false;">Home</a></li><li><a href="#" onclick="navigate('about'); return false;">About</a></li><li><a href="#">FAQ</a></li><li><a href="#">Contact</a></li><li><a href="#">Privacy</a></li></ul></div><div class="footer-social"><a href="#" title="Facebook"><i class="fab fa-facebook-f"></i></a><a href="#" title="Twitter"><i class="fab fa-twitter"></i></a><a href="#" title="Instagram"><i class="fab fa-instagram"></i></a></div><div class="footer-copyright">&copy; <span id="footer-year"></span> Food Rescue Initiative. (Demo)</div></div></footer>
+
+    <div class="modal-overlay" id="select-ngo-modal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Assign NGO for Pickup</h3><button class="modal-close" data-modal-id="select-ngo-modal">&times;</button></div><div class="modal-content"><p>Select NGO:</p><form id="select-ngo-form"><ul id="modal-ngo-list"></ul><input type="hidden" id="assign-ngo-food-id"></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary modal-close" data-modal-id="select-ngo-modal">Cancel</button><button type="button" id="confirm-assign-ngo" class="btn btn-primary">Confirm Assignment</button></div></div></div>
+    <div class="modal-overlay" id="ngo-detail-modal"><div class="modal"><div class="modal-header"><h3 class="modal-title" id="ngo-detail-title">NGO Details</h3><button class="modal-close" data-modal-id="ngo-detail-modal">&times;</button></div><div class="modal-content"><div class="ngo-avatar" id="ngo-detail-avatar"><img src="placeholder-ngo.png" alt="NGO Avatar" onerror="this.parentElement.innerHTML = '<span style=\'color: var(--text-light);\'>Image error</span>';"></div><h3 id="ngo-detail-name">NGO Name</h3><p class="ngo-location" id="ngo-detail-location"><i class="fas fa-map-marker-alt"></i> Location</p><div id="ngo-detail-needs"><h4>Focus Areas:</h4></div><div id="ngo-detail-map"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary modal-close" data-modal-id="ngo-detail-modal">Close</button></div></div></div>
+    <div class="modal-overlay" id="confirm-cancel-modal"><div class="modal" style="max-width: 450px;"><div class="modal-header"><h3 class="modal-title">Confirm Cancellation</h3><button class="modal-close" data-modal-id="confirm-cancel-modal">&times;</button></div><div class="modal-content"><p>Are you sure you want to cancel this donation listing?</p><input type="hidden" id="cancel-food-id"></div><div class="modal-footer"><button type="button" class="btn btn-secondary modal-close" data-modal-id="confirm-cancel-modal">No</button><button type="button" id="confirm-cancel-btn" class="btn btn-danger">Yes, Cancel</button></div></div></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // **** JAVASCRIPT - RESTORED AND UPDATED ****
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingVideo = document.getElementById('loading-video');
+            const pages = document.querySelectorAll('.page');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const menuToggle = document.getElementById('menu-toggle');
+            const navContainer = document.getElementById('main-nav-container');
+            const profileBtn = document.getElementById('profile-btn');
+            const donorOnlyElements = document.querySelectorAll('.donor-only');
+            const ngoOnlyElements = document.querySelectorAll('.ngo-only');
+            const listFoodForm = document.getElementById('list-food-form');
+            const foodImageInput = document.getElementById('food-image');
+            const imagePreviewContainer = document.getElementById('image-preview');
+            const notificationsBtn = document.getElementById('notifications-btn');
+            const notificationList = document.getElementById('notification-list');
+            const notificationCountBadge = document.getElementById('notification-count');
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.querySelector('#toast .toast-icon i');
+            const getStartedBtn = document.getElementById('get-started-btn');
+            const donationTabsContainer = document.getElementById('donation-tabs');
+            const donationContentContainer = document.getElementById('donations-content');
+            const selectNgoModal = document.getElementById('select-ngo-modal');
+            const ngoDetailModal = document.getElementById('ngo-detail-modal');
+            const confirmCancelModal = document.getElementById('confirm-cancel-modal');
+            const modalCloses = document.querySelectorAll('.modal-close');
+            const footerYear = document.getElementById('footer-year');
+
+
+            // --- State Variables ---
+            let currentUserRole = 'donor'; // 'donor' or 'ngo'
+            let currentUserId = 1; // Simulate logged-in user ID (1=Donor, 101=NGO)
+            let maps = {}; // Store map instances { mapId: mapInstance }
+            let deliveryTimeouts = {}; // Store timeouts for delivery simulation { foodId: [timeoutId1, timeoutId2, ...] }
+
+
+            // --- Simulated Data ---
+             let foodItems = [
+                 // --- Updated Initial Images to be more relevant ---
+                 // Source: Pexels/Unsplash (check individual licenses if using outside demo)
+                 { id: 1, name: "Vegetable Soup", quantity: "10 Liters", expiry: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), condition: "Cooked", address: "123 Main St, Flavor Town", notes: "Pickup by 5 PM", image: "https://images.pexels.com/photos/539451/pexels-photo-539451.jpeg?auto=compress&cs=tinysrgb&w=400", status: 'available', donorId: 1, assignedNgoId: null, ngoName: null, pickupTime: null, lat: 19.0760, lng: 72.8777 },
+                 { id: 2, name: "Sourdough Bread", quantity: "20 Loaves", expiry: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), condition: "Packaged", address: "456 Bakery Ave, Kneadville", notes: "Sealed.", image: "https://images.pexels.com/photos/1387070/pexels-photo-1387070.jpeg?auto=compress&cs=tinysrgb&w=400", status: 'pending', donorId: 1, assignedNgoId: null, ngoName: null, pickupTime: null, lat: 19.0213, lng: 72.8424 },
+                 { id: 3, name: "Chicken Biryani", quantity: "5 Trays", expiry: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), condition: "Cooked", address: "789 Spice Rd, Curry City", notes: "Contains nuts.", image: "https://images.pexels.com/photos/12737656/pexels-photo-12737656.jpeg?auto=compress&cs=tinysrgb&w=400", status: 'approved', donorId: 1, assignedNgoId: 102, ngoName: "Helping Hands Org", pickupTime: "Today, 3:00 PM", lat: 19.1197, lng: 72.8464 }, // Start simulation from this one
+                 { id: 4, name: "Fresh Apples", quantity: "2 Crates", expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), condition: "Produce", address: "101 Orchard Ln, Fruit Valley", notes: "", image: "https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=400", status: 'delivered', donorId: 1, assignedNgoId: 101, ngoName: "Community Feeders", pickupTime: "Yesterday, 11:00 AM", lat: 19.2183, lng: 72.9781 },
+                 { id: 5, name: "Pasta Salad", quantity: "3 Kg", expiry: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), condition: "Cooked", address: "Pasta Place, Italy Town", notes: "Mistake in listing", image: "https://images.pexels.com/photos/1437267/pexels-photo-1437267.jpeg?auto=compress&cs=tinysrgb&w=400", status: 'cancelled', donorId: 1, assignedNgoId: null, ngoName: null, pickupTime: null, lat: 19.0760, lng: 72.8777 }
+            ];
+             let ngos = [
+                 // Using picsum for NGO avatars is fine as they are placeholders
+                 { id: 101, name: "Community Feeders", location: "Downtown Area", needs: ["Meals", "Produce"], avatar: "https://picsum.photos/80/80?random=101", lat: 19.0213, lng: 72.8424 },
+                 { id: 102, name: "Helping Hands Org", location: "West Suburbs", needs: ["Meals", "Packaged"], avatar: "https://picsum.photos/80/80?random=102", lat: 19.1197, lng: 72.8464 },
+                 { id: 103, name: "Shelter Support", location: "North City", needs: ["Groceries", "Produce"], avatar: "https://picsum.photos/80/80?random=103", lat: 19.2183, lng: 72.9781 },
+                 { id: 104, name: "Good Meals Initiative", location: "South Point", needs: ["Meals", "Groceries"], avatar: "https://picsum.photos/80/80?random=104", lat: 18.9220, lng: 72.8347 }
+            ];
+             let notifications = [ // Updated notifications slightly
+                 { id: 1, title: "Request Received", text: "A request was received for Sourdough Bread.", time: "1 hour ago", unread: true, foodId: 2 },
+                 { id: 2, title: "Pickup Approved", text: "Chicken Biryani pickup approved for Helping Hands Org.", time: "2 hours ago", unread: true, foodId: 3 },
+                 { id: 3, title: "Donation Delivered", text: "Fresh Apples donation was delivered.", time: "1 day ago", unread: false, foodId: 4 }
+            ];
+            let nextFoodId = 6;
+            let nextNotificationId = 4;
+            const SIMULATION_INTERVAL = 5000; // 5 seconds
+
+            // --- Functions ---
+
+            // Basic Navigation
+             window.navigate = (targetPageId) => { // Make globally accessible for inline onclick
+                pages.forEach(page => page.classList.remove('active'));
+                navLinks.forEach(link => link.classList.remove('active'));
+                const targetPage = document.getElementById(targetPageId);
+                const targetLink = document.querySelector(`.nav-link[data-target="${targetPageId}"]`);
+                if (targetPage) targetPage.classList.add('active');
+                if (targetLink) targetLink.classList.add('active');
+                navContainer.classList.remove('active');
+                menuToggle.querySelector('i').classList.replace('fa-times', 'fa-bars');
+                window.scrollTo(0, 0);
+                 if (targetPageId === 'donations') renderDonations();
+                 if (targetPageId === 'view-ngos') renderNgosList();
+                 if (targetPageId === 'available-food') renderAvailableFoodForNgo();
+                 if (targetPageId === 'ngo-requests') renderNgoRequests();
+            };
+
+            // Toggle User Role
+            const toggleUserRole = () => {
+                currentUserRole = currentUserRole === 'donor' ? 'ngo' : 'donor';
+                currentUserId = currentUserRole === 'donor' ? 1 : 101;
+                updateUIForRole();
+                showToast(`${currentUserRole === 'donor' ? 'Donor' : 'NGO'} view activated.`, 'info');
+                const defaultPage = currentUserRole === 'donor' ? 'donations' : 'available-food';
+                navigate(defaultPage);
+            };
+
+            // Update UI for Role
+            const updateUIForRole = () => {
+                donorOnlyElements.forEach(el => el.style.display = currentUserRole === 'donor' ? '' : 'none');
+                ngoOnlyElements.forEach(el => el.style.display = currentUserRole === 'ngo' ? '' : 'none');
+                profileBtn.querySelector('i').className = `fas ${currentUserRole === 'donor' ? 'fa-store' : 'fa-hands-helping'}`;
+                 profileBtn.title = `Current Role: ${currentUserRole === 'donor' ? 'Donor' : 'NGO'}. Click to switch.`;
+                 const activePage = document.querySelector('.page.active');
+                 if (activePage) {
+                     if (currentUserRole === 'donor' && activePage.classList.contains('ngo-only')) navigate('donations');
+                     else if (currentUserRole === 'ngo' && activePage.classList.contains('donor-only')) navigate('available-food');
+                 }
+            };
+
+            // Format Date/Time
+            const formatDateTime = (isoString) => {
+                if (!isoString) return 'N/A';
+                const date = new Date(isoString);
+                return date.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+            };
+
+            // Get Status Tag HTML
+             const getStatusTagHTML = (status) => {
+                 let statusClass = '', statusText = '';
+                 switch (status) {
+                     case 'available': statusClass = 'status-available'; statusText = 'Available'; break;
+                     case 'pending': statusClass = 'status-pending'; statusText = 'Pending Approval'; break;
+                     case 'approved': statusClass = 'status-approved'; statusText = 'Approved'; break;
+                     case 'in-progress': statusClass = 'status-in-progress'; statusText = 'Pickup In Progress'; break;
+                     case 'transit': statusClass = 'status-transit'; statusText = 'In Transit'; break;
+                     case 'delivered': statusClass = 'status-delivered'; statusText = 'Delivered'; break;
+                     case 'cancelled': statusClass = 'status-cancelled'; statusText = 'Cancelled'; break;
+                     default: statusClass = 'status-available'; statusText = 'Available';
+                 }
+                 return `<span class="status-tag ${statusClass}">${statusText}</span>`;
+             };
+
+            // Map Functions (initMap, updateMap)
+              const initMap = (mapId, lat, lng, zoom = 13, markerText = "Location") => {
+                const mapContainer = document.getElementById(mapId);
+                if (!mapContainer) { /* console.error(`Map container ${mapId} not found.`);*/ return null; }
+                if (maps[mapId]) { maps[mapId].remove(); delete maps[mapId]; }
+                if (typeof L === 'undefined') { console.error("Leaflet not loaded."); return null; }
+                 try {
+                     const map = L.map(mapId).setView([lat, lng], zoom);
+                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+                     const marker = L.marker([lat, lng]).addTo(map);
+                     if (markerText) marker.bindPopup(markerText).openPopup();
+                     maps[mapId] = map;
+                     setTimeout(() => { if (maps[mapId]) maps[mapId].invalidateSize(); }, 100); // Use stored reference
+                     return map;
+                 } catch (e) { console.error(`Error initializing map ${mapId}:`, e); mapContainer.innerHTML = `<p class="error">Error loading map.</p>`; return null; }
+             };
+             const updateMap = (mapId, donorCoords, ngoCoords, deliveryCoords = null) => {
+                 const map = maps[mapId];
+                 if (!map) return;
+                 map.eachLayer(layer => { if (layer instanceof L.Marker || layer instanceof L.Path) map.removeLayer(layer); }); // More specific layer check
+                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+                 const icons = {
+                     donor: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }),
+                     ngo: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }),
+                     delivery: L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] })
+                 };
+                 const markers = [];
+                 if (donorCoords) markers.push(L.marker(donorCoords, { icon: icons.donor }).bindPopup("Donor"));
+                 if (ngoCoords) markers.push(L.marker(ngoCoords, { icon: icons.ngo }).bindPopup("NGO"));
+                 if (deliveryCoords) markers.push(L.marker(deliveryCoords, { icon: icons.delivery }).bindPopup("Current"));
+                 if (markers.length > 0) {
+                     const group = L.featureGroup(markers).addTo(map);
+                     try { map.fitBounds(group.getBounds().pad(0.3)); } catch (e) { if(markers.length === 1) map.setView(markers[0].getLatLng(), 13); else console.warn("Map bounds error"); }
+                 }
+                 setTimeout(() => { if (maps[mapId]) maps[mapId].invalidateSize(); }, 100);
+             };
+
+
+            // Tracking Steps HTML Generator
+             const getTrackingStepsHTML = (status, itemId) => {
+                 const steps = [ { key: 'pending', icon: 'fa-clock', text: 'Pending' }, { key: 'approved', icon: 'fa-thumbs-up', text: 'Approved' }, { key: 'in-progress', icon: 'fa-truck', text: 'In Progress' }, { key: 'transit', icon: 'fa-route', text: 'In Transit'}, { key: 'delivered', icon: 'fa-gift', text: 'Delivered' } ];
+                 const statusOrder = steps.map(s => s.key); let currentStatusIndex = statusOrder.indexOf(status);
+                 if (currentStatusIndex === -1 && status !== 'cancelled') currentStatusIndex = 0; else if (status === 'cancelled') currentStatusIndex = -1;
+                 let stepClass = currentStatusIndex >= 0 ? `step-${currentStatusIndex + 1}-active` : '';
+                 let html = `<div class="tracking-container" id="tracking-${itemId}"><h4>Delivery Status</h4><div class="track-steps ${stepClass}">`;
+                 steps.forEach((step, index) => { const isActive = index <= currentStatusIndex; html += `<div class="track-step"><div class="step-icon ${isActive ? 'active' : ''}"><i class="fas ${step.icon}"></i></div><div class="step-text ${isActive ? 'active' : ''}">${step.text}</div></div>`; });
+                 html += `</div></div>`; return html;
+             };
+
+            // Map Container HTML Generator
+             const getMapContainerHTML = (itemId, donorLat, donorLng, ngoLat, ngoLng, status) => {
+                 const showMapStatuses = ['approved', 'in-progress', 'transit', 'delivered']; if (!showMapStatuses.includes(status)) return '';
+                 let deliveryInfo = '', statusText = "Unknown";
+                 const donor = findDonorById(1); const ngo = findNgoById(findFoodItemById(itemId)?.assignedNgoId);
+                 if (status === 'approved') statusText = "Pickup Approved"; else if (status === 'in-progress') statusText = "Pickup In Progress"; else if (status === 'transit') statusText = "In Transit"; else if (status === 'delivered') statusText = "Delivered";
+                 if (donor && ngo) { deliveryInfo = `<div class="delivery-info"><p><i class="fas fa-store"></i> From: <span>${donor?.name}</span> <span class="address">(${donor?.address})</span></p><p><i class="fas fa-hands-helping"></i> To: <span>${ngo?.name}</span> <span class="address">(${ngo?.location})</span></p><p><i class="fas fa-info-circle"></i> Status: <span style="font-weight: bold; color: ${status === 'delivered' ? 'var(--success-color)' : 'var(--text-dark)'};">${statusText}</span></p></div>`; }
+                 return `<div class="map-container" id="map-container-${itemId}"><h4>Live Tracking (Simulated)</h4><div id="map-${itemId}" class="leaflet-container">Loading Map...</div>${deliveryInfo}</div>`;
+             };
+
+            // --- Food Card Rendering ---
+            const createFoodCardHTML = (item, viewType = 'donor') => {
+                 const isDonorView = viewType === 'donor', isNgoAvailableView = viewType === 'ngo-available', isNgoRequestView = viewType === 'ngo-request';
+                 const imageUrl = item.image || `https://via.placeholder.com/400x200.png?text=Image+Not+Available`;
+                 const imageFallbackHTML = `this.onerror=null; this.parentElement.innerHTML = '<span style=\\'color: var(--text-light); padding: 10px;\\'>Image not found</span>';`;
+                 const statusHTML = getStatusTagHTML(item.status); const expiryFormatted = formatDateTime(item.expiry); const isExpired = new Date(item.expiry) < new Date();
+                 let actionsHTML = '';
+                 if (isDonorView) { /* Donor button logic based on status */
+                     if (item.status === 'available') actionsHTML = `<button class="btn btn-primary btn-sm assign-ngo-btn" data-food-id="${item.id}"><i class="fas fa-user-check"></i> Assign</button>`;
+                     else if (item.status === 'pending') actionsHTML = `<button class="btn btn-primary btn-sm assign-ngo-btn" data-food-id="${item.id}" title="Approve Request & Assign"><i class="fas fa-thumbs-up"></i> Approve</button>`;
+                     else if (item.status === 'delivered') actionsHTML = `<button class="btn btn-sm btn-success" disabled><i class="fas fa-check-double"></i> Delivered</button>`;
+                     else if (item.status !== 'cancelled') actionsHTML = `<button class="btn btn-secondary btn-sm view-ngo-details-btn" data-ngo-id="${item.assignedNgoId}"><i class="fas fa-info-circle"></i> View NGO</button>`;
+                     else actionsHTML = `<button class="btn btn-sm" disabled><i class="fas fa-ban"></i> Cancelled</button>`;
+                     if (item.status !== 'delivered' && item.status !== 'cancelled') actionsHTML += `<button class="btn btn-danger btn-sm cancel-donation-btn" data-food-id="${item.id}" style="margin-left: 5px;"><i class="fas fa-times"></i> Cancel</button>`;
+                 } else if (isNgoAvailableView) { actionsHTML = `<button class="btn btn-primary btn-sm request-food-btn" data-food-id="${item.id}"><i class="fas fa-check"></i> Request</button>`;
+                 } else if (isNgoRequestView) { actionsHTML = `<button class="btn btn-secondary btn-sm view-details-btn" data-food-id="${item.id}"><i class="fas fa-info-circle"></i> Details</button>`; }
+                 let trackingHTML = '', mapHTML = ''; const showTrackingStatuses = ['pending', 'approved', 'in-progress', 'transit', 'delivered']; const showMapStatuses = ['approved', 'in-progress', 'transit', 'delivered'];
+                 if (showTrackingStatuses.includes(item.status)) trackingHTML = getTrackingStepsHTML(item.status, item.id);
+                 if (showMapStatuses.includes(item.status)) { const donorCoords = [item.lat || 19.076, item.lng || 72.877]; const assignedNgo = findNgoById(item.assignedNgoId); const ngoCoords = assignedNgo ? [assignedNgo.lat, assignedNgo.lng] : null; mapHTML = getMapContainerHTML(item.id, donorCoords[0], donorCoords[1], ngoCoords ? ngoCoords[0] : null, ngoCoords ? ngoCoords[1] : null, item.status); }
+                 return `<div class="food-card" data-food-id="${item.id}"><div class="food-card-image"><img src="${imageUrl}" alt="${item.name}" loading="lazy" onerror="${imageFallbackHTML}"></div><div class="food-card-content"><h3 class="food-card-title">${item.name} ${statusHTML}</h3><p><i class="fas fa-balance-scale"></i><strong>Qty:</strong> ${item.quantity}</p><p><i class="fas fa-calendar-times"></i><strong>Expiry:</strong> <span style="${isExpired?'color:var(--danger-color);font-weight:bold;':''}">${expiryFormatted} ${isExpired?'(Expired)':''}</span></p><p><i class="fas fa-thermometer-half"></i><strong>Cond:</strong> ${item.condition}</p><p><i class="fas fa-map-marker-alt"></i><strong>Pickup:</strong> ${item.address}</p>${item.ngoName&&item.status!=='pending'&&item.status!=='available'?`<p><i class="fas fa-hands-helping"></i><strong>NGO:</strong> ${item.ngoName}</p>`:''} ${item.pickupTime&&item.status!=='cancelled'?`<p><i class="fas fa-clock"></i><strong>Pickup:</strong> ${item.pickupTime}</p>`:''} ${item.notes?`<p><i class="fas fa-sticky-note"></i><strong>Notes:</strong> ${item.notes}</p>`:''}</div>${trackingHTML}${mapHTML}<div class="food-card-actions">${actionsHTML}</div></div>`;
+            };
+
+            // --- RENDER FUNCTIONS ---
+            const renderItems = (items, containerId, viewType) => {
+                 const container = document.getElementById(containerId);
+                 if (!container) return; container.innerHTML = '';
+                 if (items.length === 0) { /* No items message */ container.innerHTML = `<p style="padding: 20px; text-align: center; color: var(--text-light);">No items found matching this criteria.</p>`; return; }
+                 const mapInitPromises = [];
+                 items.forEach(item => {
+                     container.insertAdjacentHTML('beforeend', createFoodCardHTML(item, viewType));
+                     const showMapStatuses = ['approved', 'in-progress', 'transit', 'delivered'];
+                     if (showMapStatuses.includes(item.status)) { /* Map init promise logic */
+                        const mapElementId = `map-${item.id}`; const donorCoords = [item.lat || 19.076, item.lng || 72.877]; const assignedNgo = findNgoById(item.assignedNgoId); const ngoCoords = assignedNgo ? [assignedNgo.lat, assignedNgo.lng] : null;
+                        mapInitPromises.push(new Promise(resolve => setTimeout(() => { const map = initMap(mapElementId, donorCoords[0], donorCoords[1], 11); if (map && ngoCoords) updateMap(mapElementId, donorCoords, ngoCoords); else if(map) map.setView(donorCoords, 13); resolve(); }, 150)));
+                     }
+                 });
+                 // Promise.all(mapInitPromises); // Optional: wait for all maps if needed
+            };
+
+            // --- MODIFIED: renderDonations ---
+            const renderDonations = () => {
+                if (currentUserRole !== 'donor') return;
+                const donorItems = foodItems.filter(item => item.donorId === currentUserId);
+                // Simplified statuses based on remaining tabs
+                const statuses = ['all', 'available', 'pending', 'delivered', 'cancelled'];
+                 statuses.forEach(status => {
+                    const gridId = `donations-grid-${status}`;
+                    const gridContainer = document.getElementById(gridId); // Check if grid exists
+                    if (!gridContainer) return; // Skip if tab/grid was removed
+                    let itemsToRender = (status === 'all') ? donorItems : donorItems.filter(item => item.status === status);
+                    renderItems(itemsToRender, gridId, 'donor');
+                 });
+                 // Active tab logic remains the same
+                 const activeTab = donationTabsContainer.querySelector('.tab.active');
+                 let activeTabContentId = 'donations-all'; if (activeTab) activeTabContentId = activeTab.getAttribute('data-tab');
+                 document.querySelectorAll('#donations-content .tab-content').forEach(tc => tc.classList.remove('active'));
+                 const activeContent = document.getElementById(activeTabContentId); if (activeContent) activeContent.classList.add('active'); else document.getElementById('donations-all').classList.add('active');
+            };
+
+            // renderAvailableFoodForNgo
+            const renderAvailableFoodForNgo = () => { if (currentUserRole !== 'ngo') return; const available = foodItems.filter(i => i.status === 'available'); renderItems(available, 'available-food-grid', 'ngo-available'); };
+            // renderNgoRequests
+            const renderNgoRequests = () => { if (currentUserRole !== 'ngo') return; const relevant = foodItems.filter(i => (i.assignedNgoId === currentUserId && i.status !== 'available' && i.status !== 'cancelled') || (i.status === 'pending' && i.assignedNgoId === null)); renderItems(relevant, 'ngo-requests-grid', 'ngo-request'); };
+            // renderNgosList
+             const renderNgosList = (containerId = 'ngo-list-container') => { const listContainer = document.getElementById(containerId); if (!listContainer) return; listContainer.innerHTML = ''; if (ngos.length === 0) { listContainer.innerHTML = '<p>No NGOs found.</p>'; return; } ngos.forEach(ngo => { const needs = ngo.needs.map(n => `<span>${n}</span>`).join(''); const avatar = ngo.avatar || `https://picsum.photos/80/80?random=${ngo.id}`; const fallback = `this.onerror=null; this.parentElement.innerHTML = '<i class="fas fa-users"></i>';`; listContainer.insertAdjacentHTML('beforeend', `<div class="ngo-item"><div class="ngo-avatar"><img src="${avatar}" alt="${ngo.name}" loading="lazy" onerror="${fallback}"></div><div class="ngo-info"><h3 class="ngo-name">${ngo.name}</h3><p class="ngo-location"><i class="fas fa-map-marker-alt"></i> ${ngo.location}</p><div class="ngo-needs"><strong>Needs:</strong> ${needs}</div></div><button class="btn btn-secondary btn-sm view-ngo-details-btn" data-ngo-id="${ngo.id}"><i class="fas fa-info-circle"></i> Details</button></div>`); }); };
+
+            // Notification Functions
+             const renderNotifications = () => { notificationList.innerHTML = ''; const unread = notifications.filter(n => n.unread).length; if (notifications.length === 0) { notificationList.innerHTML = '<div class="no-notifications">No notifications</div>'; notificationCountBadge.textContent = '0'; notificationCountBadge.style.display = 'none'; return; } notifications.sort((a, b) => b.id - a.id); notifications.forEach(n => { const itemCls = n.unread ? 'notification-item unread' : 'notification-item'; const iconMap = { 'Accepted': 'fa-check-circle', 'Delivered': 'fa-check-double', 'Complete': 'fa-check-double', 'Request': 'fa-info-circle', 'Listed': 'fa-plus-circle', 'Assigned': 'fa-user-check', 'Approved': 'fa-thumbs-up', 'Progress': 'fa-truck', 'Transit': 'fa-route', 'Cancelled': 'fa-ban' }; let icon = 'fa-bell'; for (const k in iconMap) { if (n.title.includes(k)) { icon = iconMap[k]; break; } } notificationList.insertAdjacentHTML('beforeend', `<div class="${itemCls}" data-notification-id="${n.id}" data-food-id="${n.foodId||''}"><div class="notification-icon"><i class="fas ${icon}"></i></div><div class="notification-content"><div class="notification-title">${n.title}</div><div class="notification-text">${n.text}</div><div class="notification-time">${n.time}</div></div></div>`); }); notificationCountBadge.textContent = unread; notificationCountBadge.style.display = unread > 0 ? 'flex' : 'none'; };
+             const addNotification = (title, text, foodId = null) => { notifications.push({ id: nextNotificationId++, title, text, time: "Just now", unread: true, foodId }); renderNotifications(); };
+             const markNotificationRead = (id) => { const n = notifications.find(n => n.id === id); if (n && n.unread) { n.unread = false; renderNotifications(); } };
+
+            // showToast
+            const showToast = (message, type = 'success') => { toastMessage.textContent = message; toast.className = `toast show ${type}`; toastIcon.className = `fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`; setTimeout(() => toast.classList.remove('show'), 3000); };
+
+            // --- Core Logic Functions ---
+            // Handle Food Listing
+            const handleListFood = (e) => {
+                e.preventDefault(); const name = e.target.elements['food-name'].value.trim(), qty = e.target.elements['food-quantity'].value.trim(), expiry = e.target.elements['food-expiry'].value, cond = e.target.elements['food-condition'].value, addr = e.target.elements['food-pickup-address'].value.trim(), notes = e.target.elements['food-notes'].value.trim(), preview = document.getElementById('preview-image');
+                if (!name || !qty || !expiry || !cond || !addr) { showToast("Please fill required fields.", "error"); return; }
+                const item = { id: nextFoodId++, name, quantity: qty, expiry: new Date(expiry).toISOString(), condition: cond, address: addr, notes, image: preview ? preview.src : `https://picsum.photos/400/200?random=${nextFoodId-1}`, status: 'available', donorId: currentUserId, assignedNgoId: null, ngoName: null, pickupTime: null, lat: 19.076 + (Math.random()-0.5)*0.1, lng: 72.877 + (Math.random()-0.5)*0.1 };
+                foodItems.push(item); showToast("Item listed!", "success"); e.target.reset(); imagePreviewContainer.innerHTML = ''; renderDonations(); navigate('donations');
+            };
+            // Image Preview
+            const handleImagePreview = (e) => { const file = e.target.files[0]; imagePreviewContainer.innerHTML = ''; if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = ev => { const img = document.createElement('img'); img.id = 'preview-image'; img.src = ev.target.result; img.alt = "Preview"; imagePreviewContainer.appendChild(img); }; reader.readAsDataURL(file); } else if (file) { imagePreviewContainer.innerHTML = '<p class="error">Invalid file.</p>'; } };
+
+            // Modals
+            const openModal = (id) => { const m = document.getElementById(id); if(m) { m.classList.add('active'); document.body.classList.add('no-scroll'); } };
+            const closeModal = (id) => { const m = document.getElementById(id); if(m) { m.classList.remove('active'); if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('no-scroll'); if (id === 'ngo-detail-modal' && maps['ngo-detail-map']) { maps['ngo-detail-map'].remove(); delete maps['ngo-detail-map']; } } };
+
+            // Finders
+            const findFoodItemById = (id) => foodItems.find(i => i.id === parseInt(id));
+            const findNgoById = (id) => ngos.find(n => n.id === parseInt(id));
+            const findDonorById = (id) => ({ id: 1, name: "Demo Restaurant", address: "123 Main St" });
+
+            // --- Automatic Delivery Simulation ---
+             const simulateDeliveryProcess = (foodId) => {
+                 const item = findFoodItemById(foodId); if (!item || item.status !== 'approved') return;
+                 if (deliveryTimeouts[foodId]) deliveryTimeouts[foodId].forEach(clearTimeout); deliveryTimeouts[foodId] = [];
+                 const updateStatus = (newStatus, delay, title, textDonor, textNgo) => {
+                     const tid = setTimeout(() => {
+                         const current = findFoodItemById(foodId);
+                         if (current && current.status !== 'cancelled' && current.status !== 'delivered') {
+                             current.status = newStatus;
+                             addNotification(title, textDonor, foodId); // Donor
+                             if (current.assignedNgoId) addNotification(title, textNgo, foodId); // NGO
+                             renderDonations(); renderNgoRequests(); // Refresh views
+                         }
+                     }, delay);
+                     deliveryTimeouts[foodId].push(tid);
+                 };
+                 const ngoName = item.ngoName || 'NGO'; const donorName = findDonorById(item.donorId)?.name || 'Donor'; const itemName = item.name;
+                 updateStatus('in-progress', SIMULATION_INTERVAL, "Pickup In Progress", `Pickup for ${itemName} by ${ngoName} started.`, `Pickup for ${itemName} from ${donorName} started.`);
+                 updateStatus('transit', SIMULATION_INTERVAL * 2, "Item In Transit", `${itemName} en route to ${ngoName}.`, `${itemName} collected, en route.`);
+                 updateStatus('delivered', SIMULATION_INTERVAL * 3, "Item Delivered", `${itemName} delivered to ${ngoName}.`, `${itemName} from ${donorName} delivered.`);
+                 setTimeout(() => delete deliveryTimeouts[foodId], SIMULATION_INTERVAL * 3 + 100);
+             };
+             const cancelDeliverySimulation = (foodId) => { if (deliveryTimeouts[foodId]) { deliveryTimeouts[foodId].forEach(clearTimeout); delete deliveryTimeouts[foodId]; console.log(`Sim cancelled: ${foodId}`); } };
+
+             // --- Event Handlers ---
+             modalCloses.forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal-overlay').id)));
+             document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); }));
+             menuToggle.addEventListener('click', () => { navContainer.classList.toggle('active'); menuToggle.querySelector('i').classList.toggle('fa-bars'); menuToggle.querySelector('i').classList.toggle('fa-times'); });
+             navLinks.forEach(link => link.addEventListener('click', e => { e.preventDefault(); navigate(link.getAttribute('data-target')); }));
+             getStartedBtn.addEventListener('click', () => navigate(currentUserRole === 'donor' ? 'donations' : 'available-food'));
+             profileBtn.addEventListener('click', toggleUserRole);
+             if (listFoodForm) listFoodForm.addEventListener('submit', handleListFood);
+             if (foodImageInput) foodImageInput.addEventListener('change', handleImagePreview);
+             notificationsBtn.addEventListener('click', e => { e.stopPropagation(); notificationList.style.display = notificationList.style.display === 'block' ? 'none' : 'block'; });
+             document.body.addEventListener('click', e => { if (!notificationsBtn.contains(e.target) && !notificationList.contains(e.target)) notificationList.style.display = 'none'; });
+             notificationList.addEventListener('click', e => { const item = e.target.closest('.notification-item'); if (item) markNotificationRead(parseInt(item.dataset.notificationId)); });
+
+              // Tab Switching (Donor View - Simplified)
+              if (donationTabsContainer) {
+                 donationTabsContainer.addEventListener('click', e => {
+                      const tab = e.target.closest('.tab'); if (!tab) return;
+                      const targetContentId = tab.getAttribute('data-tab'); if (!document.getElementById(targetContentId)) return;
+                      donationTabsContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                      donationContentContainer.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                      tab.classList.add('active'); document.getElementById(targetContentId).classList.add('active');
+                 });
+              }
+
+              // --- Event Delegation for Dynamic Content ---
+             document.body.addEventListener('click', e => {
+                 const assignBtn = e.target.closest('.assign-ngo-btn');
+                 const confirmAssignBtn = e.target.id === 'confirm-assign-ngo';
+                 const cancelBtn = e.target.closest('.cancel-donation-btn');
+                 const confirmCancelBtn = e.target.id === 'confirm-cancel-btn';
+                 const requestBtn = e.target.closest('.request-food-btn');
+                 const viewNgoBtn = e.target.closest('.view-ngo-details-btn');
+                 const viewDetailsBtn = e.target.closest('.view-details-btn');
+
+                 // Donor: Assign NGO / Approve Request
+                 if (assignBtn) {
+                     const foodId = assignBtn.dataset.foodId; const item = findFoodItemById(foodId); document.getElementById('assign-ngo-food-id').value = foodId;
+                     const list = document.getElementById('modal-ngo-list'); list.innerHTML = ''; let preselectId = (item?.status === 'pending') ? ngos[0]?.id : null;
+                     ngos.forEach(n => { const checked = (n.id === preselectId) ? 'checked' : ''; list.insertAdjacentHTML('beforeend', `<li><input type="radio" name="selected_ngo" value="${n.id}" id="ngo-${n.id}" required ${checked}><label for="ngo-${n.id}"><span class="ngo-name">${n.name}</span><span class="ngo-location">${n.location}</span></label></li>`); });
+                     if (preselectId) showToast(`Pre-selected NGO (Demo).`, 'info'); openModal('select-ngo-modal');
+                 }
+                 // Donor: Confirm Assignment
+                 else if (confirmAssignBtn) {
+                     const form = document.getElementById('select-ngo-form'); const radio = form.querySelector('input:checked'); const foodId = form.elements['assign-ngo-food-id'].value;
+                     if (radio && foodId) { const ngoId = radio.value; const item = findFoodItemById(foodId); const ngo = findNgoById(ngoId);
+                         if (item && ngo) { item.status = 'approved'; item.assignedNgoId = ngo.id; item.ngoName = ngo.name; item.pickupTime = "ASAP"; closeModal('select-ngo-modal'); showToast(`Approved & Assigned ${ngo.name}. Sim starting...`, 'success'); addNotification("Pickup Approved", `Request for ${item.name} approved.`, foodId); renderDonations(); renderNgoRequests(); simulateDeliveryProcess(foodId); }
+                         else showToast("Error assigning.", "error");
+                     } else showToast("Select an NGO.", "error");
+                 }
+                 // Donor: Cancel Donation (Open Confirm)
+                 else if (cancelBtn) { document.getElementById('cancel-food-id').value = cancelBtn.dataset.foodId; openModal('confirm-cancel-modal'); }
+                 // Donor: Confirm Cancel
+                 else if (confirmCancelBtn) {
+                     const foodId = document.getElementById('cancel-food-id').value; const item = findFoodItemById(foodId);
+                     if (item) { if (item.status !== 'delivered') { const oldStatus = item.status; const oldNgo = item.assignedNgoId; item.status = 'cancelled'; item.assignedNgoId = null; item.ngoName = null; cancelDeliverySimulation(foodId); showToast(`Donation cancelled.`, 'success'); closeModal('confirm-cancel-modal'); renderDonations(); renderNgoRequests(); if (oldNgo && oldStatus !== 'pending' && oldStatus !== 'available') addNotification("Pickup Cancelled", `Pickup for ${item.name} cancelled.`, foodId); }
+                         else { showToast(`Cannot cancel delivered item.`, 'error'); closeModal('confirm-cancel-modal'); }
+                     } else { showToast("Error cancelling.", "error"); closeModal('confirm-cancel-modal'); }
+                 }
+                 // NGO: Request Food
+                 else if (requestBtn) { requestFood(requestBtn.dataset.foodId); }
+                 // Shared: View NGO Details
+                 else if (viewNgoBtn) {
+                     const ngoId = viewNgoBtn.dataset.ngoId; const ngo = findNgoById(ngoId);
+                     if (ngo) { document.getElementById('ngo-detail-title').textContent = ngo.name; document.getElementById('ngo-detail-name').textContent = ngo.name; document.getElementById('ngo-detail-location').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${ngo.location}`; document.getElementById('ngo-detail-avatar').innerHTML = `<img src="${ngo.avatar || 'placeholder.png'}" alt="${ngo.name}" onerror="this.parentElement.innerHTML = 'Icon';">`; document.getElementById('ngo-detail-needs').innerHTML = `<h4>Needs:</h4> ${ngo.needs.map(n => `<span>${n}</span>`).join(' ')}`; const mapDiv = document.getElementById('ngo-detail-map'); mapDiv.dataset.lat = ngo.lat; mapDiv.dataset.lng = ngo.lng; mapDiv.dataset.name = ngo.name; setTimeout(() => initMap('ngo-detail-map', ngo.lat, ngo.lng, 14, ngo.name), 150); openModal('ngo-detail-modal'); }
+                     else showToast("NGO details not found.", "error");
+                 }
+                 // NGO: View Details (My Requests)
+                 else if (viewDetailsBtn) { const item = findFoodItemById(viewDetailsBtn.dataset.foodId); showToast(`Details: ${item?.name}. Status: ${item?.status || 'N/A'}`, 'info'); }
+             });
+
+             // --- NGO Specific Functions ---
+             const requestFood = (foodId) => {
+                 if (currentUserRole !== 'ngo') return; const item = findFoodItemById(foodId);
+                 if (item && item.status === 'available') { item.status = 'pending'; showToast(`Request sent for "${item.name}".`, 'success'); renderAvailableFoodForNgo(); renderNgoRequests(); addNotification("Food Request", `NGO (${findNgoById(currentUserId)?.name}) requested ${item.name}.`, foodId); }
+                 else if (item) showToast(`Cannot request. Status: ${item.status}.`, 'warning'); else showToast("Item not found.", "error");
+             };
+
+            // --- Initial Setup ---
+             const initializeApp = () => {
+                 if (footerYear) footerYear.textContent = new Date().getFullYear();
+                 updateUIForRole();
+                 foodItems.forEach(item => { if (item.status === 'approved') simulateDeliveryProcess(item.id); }); // Start simulation for existing approved items
+                 navigate(currentUserRole === 'donor' ? 'donations' : 'available-food');
+                 renderNotifications();
+                 setTimeout(() => { loadingOverlay.classList.add('hidden'); document.body.classList.remove('no-scroll'); }, 500); // Faster loading hide
+             };
+
+            // Video error handling
+            if (loadingVideo) { loadingVideo.onerror = () => { document.getElementById('loading-box').innerHTML = '<p style="color: white;">Loading...</p>'; }; }
+            else { loadingOverlay.classList.add('hidden'); document.body.classList.remove('no-scroll'); }
+
+            initializeApp();
+
+        });
+    </script>
+
+</body>
+</html>

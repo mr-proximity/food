@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+            transition: all 0.3s ease;
+        }
+        body {
+            background-color: #FDE4CE; /* Cream background */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Loading screen styles */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #D22701; /* Red background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            mix-blend-mode: screen;
+            
+        }
+        
+        .loading-text {
+            color: #FDE4CE; /* Cream text */
+            margin-top: 20px;
+            font-size: 1.2rem;
+        }
+        
+        /* Background decoration elements */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.3;
+        }
+        
+        .circle-1 {
+            width: 300px;
+            height: 300px;
+            background-color: #4E070C; /* Brown */
+            top: -100px;
+            left: -100px;
+        }
+        
+        .circle-2 {
+            width: 400px;
+            height: 400px;
+            background-color: #AAD15F; /* Green */
+            bottom: -150px;
+            right: -150px;
+        }
+        
+        .circle-3 {
+            width: 200px;
+            height: 200px;
+            background-color: #FF670E; /* Orange */
+            top: 50%;
+            left: 20%;
+        }
+        
+        .container {
+            background: rgba(253, 228, 206, 0.8); /* Cream with transparency */
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(78, 7, 12, 0.2);
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            border: 1px solid rgba(253, 228, 206, 0.3);
+            z-index: 10;
+            position: relative;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4E070C; /* Brown */
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4E070C; /* Brown */
+            font-weight: 600;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid rgba(78, 7, 12, 0.2);
+            border-radius: 8px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.7);
+            color: #4E070C; /* Brown */
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #FF670E; /* Orange */
+            box-shadow: 0 0 0 3px rgba(255, 103, 14, 0.2);
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #4E070C; /* Brown */
+            color: #FDE4CE; /* Cream */
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            background-color: #5E0A12; /* Darker brown */
+            transform: translateY(-2px);
+        }
+        
+        .toggle-form {
+            text-align: center;
+            margin-top: 20px;
+            color: #4E070C; /* Brown */
+        }
+        
+        .toggle-form a {
+            color: #D22701; /* Red */
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .toggle-form a:hover {
+            text-decoration: underline;
+            color: #FF670E; /* Orange */
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .error {
+            background: rgba(210, 39, 1, 0.2); /* Red with transparency */
+            color: #D22701; /* Red */
+            border: 1px solid rgba(210, 39, 1, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        
+        .success {
+            background: rgba(170, 209, 95, 0.3); /* Green with transparency */
+            color: #2a5a00;
+            border: 1px solid rgba(170, 209, 95, 0.4);
+            backdrop-filter: blur(5px);
+        }
+        
+        .debug {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: rgba(78, 7, 12, 0.1);
+            color: #4E070C;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        /* Glassmorphism popup */
+        .glass-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(253, 228, 206, 0.85);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(78, 7, 12, 0.3);
+            border: 1px solid rgba(253, 228, 206, 0.4);
+            z-index: 100;
+            max-width: 90%;
+            width: 350px;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-popup.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .glass-popup h2 {
+            color: #4E070C;
+            margin-top: 0;
+        }
+        
+        .glass-popup p {
+            color: #4E070C;
+            margin-bottom: 20px;
+        }
+        
+        .glass-popup button {
+            background-color: #D22701; /* Red */
+        }
+        
+        .glass-popup button:hover {
+            background-color: #FF670E; /* Orange */
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(78, 7, 12, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 99;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loading-screen">
+        <div class="loading-container">
+            <video class="loading-video" autoplay loop muted playsinline>
+                <source src="loading.mp4" type="video/mp4">
+                <!-- Add a fallback image if video doesn't load -->
+                <img src="fallback-loading.gif" alt="Loading">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        <div class="loading-text">Loading...</div>
+    </div>
+    
+    <!-- Background elements -->
+    <div class="bg-circle circle-1"></div>
+    <div class="bg-circle circle-2"></div>
+    <div class="bg-circle circle-3"></div>
+    
+    <!-- Glassmorphism Popup -->
+    <div class="glass-popup" id="glass-popup">
+        <h2 id="popup-title">Title</h2>
+        <p id="popup-message">Message goes here</p>
+        <button id="popup-close">OK</button>
+    </div>
+    <div class="overlay" id="overlay"></div>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <div id="register-form">
+            <h1>Register</h1>
+            <div id="register-message" class="message"></div>
+            <div class="form-group">
+                <label for="register-email">Email</label>
+                <input type="email" id="register-email" required>
+            </div>
+            <div class="form-group">
+                <label for="register-password">Password (min 6 chars)</label>
+                <input type="password" id="register-password" required minlength="6">
+            </div>
+            <button id="register-btn">Register</button>
+            <div class="toggle-form">
+                Already have an account? <a id="show-login">Login</a>
+            </div>
+            <div id="debug-info" class="message debug">Loading Supabase client...</div>
+        </div>
+
+        <div id="login-form" style="display: none;">
+            <h1>Login</h1>
+            <div id="login-message" class="message"></div>
+            <div class="form-group">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button id="login-btn">Login</button>
+            <div class="toggle-form">
+                Don't have an account? <a id="show-register">Register</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Supabase from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+       // Show loading screen initially
+document.addEventListener('DOMContentLoaded', function() {
+    debugLog('DOM fully loaded and parsed');
+    
+    // Start the initialization process
+    setTimeout(initApp, 1500); // Give time for loading animation to show
+});
+
+// Glass popup functions
+function showPopup(title, message) {
+    document.getElementById('popup-title').textContent = title;
+    document.getElementById('popup-message').textContent = message;
+    document.getElementById('glass-popup').classList.add('active');
+    document.getElementById('overlay').classList.add('active');
+}
+
+document.getElementById('popup-close').addEventListener('click', function() {
+    document.getElementById('glass-popup').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+});
+
+// Debug function
+function debugLog(message) {
+    const debugDiv = document.getElementById('debug-info');
+    debugDiv.style.display = 'block';
+    debugDiv.textContent += message + '\n';
+    debugDiv.scrollTop = debugDiv.scrollHeight;
+    console.log(message);
+}
+
+// Initialize the application after Supabase loads
+function initApp() {
+    debugLog('Initializing Supabase client...');
+    
+    const supabaseUrl = 'https://gebygmnrzbdqpetxitcs.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlYnlnbW5yemJkcXBldHhpdGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyMDUwNTQsImV4cCI6MjA1OTc4MTA1NH0.6kySnrd0yZXGOHWLNHjt0OBKXnGs88oMmcJ5bZSivmQ';
+    
+    try {
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        debugLog('✔ Supabase client initialized');
+        
+        // Check for existing session with proper validation
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session && session.user) {
+                // Verify the session is still valid
+                const now = new Date();
+                const expiresAt = new Date(session.expires_at * 1000);
+                
+                if (now < expiresAt) {
+                    debugLog("✔ Valid session detected for user: " + session.user.email);
+                    debugLog("Session expires at: " + expiresAt);
+                    
+                    // Show loading before redirect
+                    showPopup('Welcome Back', 'Redirecting to your account...');
+                    setTimeout(() => {
+                        window.location.href = 'home.html';
+                    }, 2000);
+                } else {
+                    debugLog("⚠ Session expired - showing login form");
+                    supabase.auth.signOut().then(() => {
+                        document.getElementById('loading-screen').classList.add('hidden');
+                        showLoginForm();
+                    });
+                }
+            } else {
+                debugLog("✔ No active session - showing login form");
+                document.getElementById('loading-screen').classList.add('hidden');
+                showLoginForm();
+            }
+        }).catch(err => {
+            debugLog('⚠ Session check failed: ' + err.message);
+            document.getElementById('loading-screen').classList.add('hidden');
+            showLoginForm();
+            showPopup('Error', 'Session check failed. Please try again.');
+        });
+
+        // Setup form handlers
+        setupForms(supabase);
+        
+    } catch (err) {
+        debugLog('❌ Supabase initialization failed: ' + err.message);
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('register-btn').disabled = true;
+        document.getElementById('login-btn').disabled = true;
+        showPopup('Error', 'Failed to initialize the authentication system. Please try again later.');
+    }
+}
+
+// Setup form handlers
+function setupForms(supabase) {
+    const registerForm = document.getElementById('register-form');
+    const loginForm = document.getElementById('login-form');
+    const showLogin = document.getElementById('show-login');
+    const showRegister = document.getElementById('show-register');
+    const registerBtn = document.getElementById('register-btn');
+    const loginBtn = document.getElementById('login-btn');
+    const registerMessage = document.getElementById('register-message');
+    const loginMessage = document.getElementById('login-message');
+
+    // Toggle between forms
+    showLogin.addEventListener('click', showLoginForm);
+    showRegister.addEventListener('click', showRegisterForm);
+
+    function showLoginForm() {
+        registerForm.style.display = 'none';
+        loginForm.style.display = 'block';
+        loginMessage.className = 'message';
+        loginMessage.textContent = '';
+    }
+
+    function showRegisterForm() {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+        registerMessage.className = 'message';
+        registerMessage.textContent = '';
+    }
+
+    // Register function
+    registerBtn.addEventListener('click', async () => {
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+
+        debugLog('\n--- Registration Attempt ---');
+        debugLog(`Email: ${email}`);
+        
+        if (!email || !password) {
+            showError(registerMessage, 'Please fill in all fields');
+            return;
+        }
+
+        if (password.length < 6) {
+            showError(registerMessage, 'Password must be at least 6 characters');
+            return;
+        }
+
+        try {
+            // Show loading screen during registration
+            document.getElementById('loading-screen').classList.remove('hidden');
+            
+            const { data, error } = await supabase.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    emailRedirectTo: window.location.href
+                }
+            });
+
+            if (error) throw error;
+            
+            debugLog(`✔ Auth user created: ${data.user ? data.user.email : 'no email'}`);
+            document.getElementById('loading-screen').classList.add('hidden');
+            showSuccess(registerMessage, 'Registration successful! Please check your email to verify your account.');
+            showPopup('Success', 'Registration successful! Please check your email to verify your account.');
+            
+            // Clear form
+            document.getElementById('register-email').value = '';
+            document.getElementById('register-password').value = '';
+            
+            // Show login form
+            showLoginForm();
+            
+        } catch (err) {
+            document.getElementById('loading-screen').classList.add('hidden');
+            showError(registerMessage, err.message || 'Registration failed');
+            debugLog('❌ Error: ' + err.message);
+            showPopup('Error', err.message || 'Registration failed. Please try again.');
+        }
+    });
+
+    // Login function
+    loginBtn.addEventListener('click', async () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        debugLog('\n--- Login Attempt ---');
+        debugLog(`Email: ${email}`);
+        
+        if (!email || !password) {
+            showError(loginMessage, 'Please fill in all fields');
+            return;
+        }
+
+        try {
+            // Show loading screen
+            document.getElementById('loading-screen').classList.remove('hidden');
+            
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+            if (error) throw error;
+            
+            debugLog(`✔ User logged in: ${data.user.email}`);
+            
+            // Verify the user's email is confirmed before redirecting
+            if (data.user.confirmed_at || data.user.email_confirmed_at) {
+                showPopup('Success', 'Login successful! Redirecting...');
+                setTimeout(() => {
+                    window.location.href = 'home.html';
+                }, 2000);
+            } else {
+                await supabase.auth.signOut();
+                showError(loginMessage, 'Please verify your email before logging in');
+                showPopup('Email Verification Required', 'Please check your email and verify your account before logging in.');
+                document.getElementById('loading-screen').classList.add('hidden');
+            }
+            
+        } catch (err) {
+            // Hide loading screen if error
+            document.getElementById('loading-screen').classList.add('hidden');
+            showError(loginMessage, err.message || 'Login failed. Check your credentials.');
+            debugLog('❌ Error: ' + err.message);
+            showPopup('Error', err.message || 'Login failed. Please check your credentials.');
+        }
+    });
+
+    function showError(element, message) {
+        element.textContent = message;
+        element.className = 'message error';
+    }
+
+    function showSuccess(element, message) {
+        element.textContent = message;
+        element.className = 'message success';
+    }
+}
+
+// Start the app when Supabase is loaded
+window.addEventListener('load', function() {
+    if (window.supabase) {
+        initApp();
+    } else {
+        document.getElementById('debug-info').textContent = 'Waiting for Supabase library to load...';
+        // Try again after a short delay if Supabase isn't loaded yet
+        setTimeout(initApp, 500);
+    }
+});
+    </script>
+</body>
+</html>
